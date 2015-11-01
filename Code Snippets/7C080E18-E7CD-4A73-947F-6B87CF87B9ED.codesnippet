@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDECodeSnippetCompletionPrefix</key>
+	<string>Auth</string>
+	<key>IDECodeSnippetCompletionScopes</key>
+	<array>
+		<string>All</string>
+	</array>
+	<key>IDECodeSnippetContents</key>
+	<string>/*
+ Verify.m
+ VerifyAuthPlugin
+ 
+ Copyright 2015 Thomas Burgin.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ 
+ http://www.apache.org/licenses/LICENSE-2.0
+ 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
+#import "Verify.h"
+
+@implementation Verify
+
+- (id)initWithMechanism:(MechanismRecord *)inMechanism {
+    
+    if ([super init]) {
+        _mechanism = (MechanismRecord *)inMechanism;
+    }
+    return self;
+}
+
+- (void)run {
+    
+    NSLog(@"VerifyAuth:MechanismInvoke:Verify:run [+] ");
+    
+    // Make sure the login user is a real user. Apple has a number of helper users
+    // that will "login" through the system.login.console mechs.
+    uid_t uid = [self getUID];
+    if (uid &lt; 501) {
+        return;
+    }
+    
+    // Get the pin that was set by the MachinePIN mechanism
+    NSString *pin = [self getPIN];
+    
+#pragma mark Display PromptWindowController
+    
+}
+
+- (NSString *)getPIN {
+    
+    // Setup method variables
+    NSString *pin;
+    const AuthorizationValue *value;
+    
+    // This NSString will be used as the domain for the inter-mechanism context data
+    NSString *contextPINDomain = @"com.burginsystems.pin";
+    
+    // Use the MechanismRecord GetHintValue callback to get the
+    // inter-mechanism context data
+    NSLog(@"VerifyAuth:MechanismInvoke:Verify [+] Attempting to read %@", contextPINDomain);
+    if (_mechanism-&gt;fPlugin-&gt;fCallbacks-&gt;GetHintValue(_mechanism-&gt;fEngine,
+                                                      [contextPINDomain UTF8String],
+                                                      &amp;value) == errAuthorizationSuccess) {
+        
+        NSData *pinData = [[NSData alloc] initWithBytes:value-&gt;data length:value-&gt;length];
+        id ret = [NSKeyedUnarchiver unarchiveObjectWithData:pinData];
+        pin = (NSString *)ret;
+        
+    } else {
+        NSLog(@"VerifyAuth:MechanismInvoke:Verify [!] Failed to read %@", contextPINDomain);
+    }
+    
+    return pin;
+}
+
+- (uid_t)getUID {
+    
+    // Setup method variables
+    const AuthorizationValue *value;
+    AuthorizationContextFlags flags;
+    uid_t uid = (uid_t) -2;
+    
+    // Use the MechanismRecord GetHintValue callback to get the
+    // inter-mechanism context data
+    if (_mechanism-&gt;fPlugin-&gt;fCallbacks-&gt;GetContextValue(_mechanism-&gt;fEngine,
+                                                         "uid",
+                                                         &amp;flags,
+                                                         &amp;value) == errAuthorizationSuccess) {
+        if (value-&gt;length == sizeof(uid_t)) {
+            uid = *(const uid_t *) value-&gt;data;
+        }
+    }
+    
+    return uid;
+    
+}
+
+@end
+</string>
+	<key>IDECodeSnippetIdentifier</key>
+	<string>7C080E18-E7CD-4A73-947F-6B87CF87B9ED</string>
+	<key>IDECodeSnippetLanguage</key>
+	<string>Xcode.SourceCodeLanguage.Objective-C</string>
+	<key>IDECodeSnippetTitle</key>
+	<string>Verify.m</string>
+	<key>IDECodeSnippetUserSnippet</key>
+	<true/>
+	<key>IDECodeSnippetVersion</key>
+	<integer>2</integer>
+</dict>
+</plist>

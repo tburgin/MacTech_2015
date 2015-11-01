@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDECodeSnippetCompletionPrefix</key>
+	<string>Auth</string>
+	<key>IDECodeSnippetCompletionScopes</key>
+	<array>
+		<string>All</string>
+	</array>
+	<key>IDECodeSnippetContents</key>
+	<string>/*
+ AuthorizationPlugin.m
+ VerifyAuthPlugin
+ 
+ Copyright 2015 Thomas Burgin.
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ 
+ http://www.apache.org/licenses/LICENSE-2.0
+ 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
+
+#import "AuthorizationPlugin.h"
+
+
+#pragma mark --MechHeaders
+
+
+#pragma mark
+#pragma mark Entry Point Wrappers
+
+AuthorizationPlugin *authorizationPlugin = nil;
+
+static OSStatus PluginDestroy(AuthorizationPluginRef inPlugin) {
+    return [authorizationPlugin PluginDestroy:inPlugin];
+}
+
+static OSStatus MechanismCreate(AuthorizationPluginRef inPlugin,
+                                AuthorizationEngineRef inEngine,
+                                AuthorizationMechanismId mechanismId,
+                                AuthorizationMechanismRef *outMechanism) {
+    return [authorizationPlugin MechanismCreate:inPlugin
+                                      EngineRef:inEngine
+                                    MechanismId:mechanismId
+                                   MechanismRef:outMechanism];
+}
+
+static OSStatus MechanismInvoke(AuthorizationMechanismRef inMechanism) {
+    return [authorizationPlugin MechanismInvoke:inMechanism];
+}
+
+static OSStatus MechanismDeactivate(AuthorizationMechanismRef inMechanism) {
+    return [authorizationPlugin MechanismDeactivate:inMechanism];
+}
+
+static OSStatus MechanismDestroy(AuthorizationMechanismRef inMechanism) {
+    return [authorizationPlugin MechanismDestroy:inMechanism];
+}
+
+static AuthorizationPluginInterface gPluginInterface = {
+    kAuthorizationPluginInterfaceVersion,
+    &amp;PluginDestroy,
+    &amp;MechanismCreate,
+    &amp;MechanismInvoke,
+    &amp;MechanismDeactivate,
+    &amp;MechanismDestroy
+};
+
+extern OSStatus AuthorizationPluginCreate(const AuthorizationCallbacks *callbacks,
+                                          AuthorizationPluginRef *outPlugin,
+                                          const AuthorizationPluginInterface **outPluginInterface) {
+    
+    if (authorizationPlugin == nil) {
+        authorizationPlugin = [[AuthorizationPlugin alloc] init];
+    }
+    
+    return [authorizationPlugin AuthorizationPluginCreate:callbacks
+                                                PluginRef:outPlugin
+                                          PluginInterface:outPluginInterface];
+    
+}
+
+#pragma mark
+#pragma mark AuthorizationPlugin Implementation
+@implementation AuthorizationPlugin
+
+- (OSStatus)AuthorizationPluginCreate:(const AuthorizationCallbacks *)callbacks
+                            PluginRef:(AuthorizationPluginRef *)outPlugin
+                      PluginInterface:(const AuthorizationPluginInterface **)outPluginInterface {
+    
+    OSStatus        err;
+    PluginRecord *  plugin;
+    
+    assert(callbacks != NULL);
+    assert(callbacks-&gt;version &gt;= kAuthorizationCallbacksVersion);
+    assert(outPlugin != NULL);
+    assert(outPluginInterface != NULL);
+    
+    // Create the plugin.
+    err = noErr;
+    plugin = (PluginRecord *) malloc(sizeof(*plugin));
+    if (plugin == NULL) {
+        err = memFullErr;
+    }
+    
+    // Fill it in.
+    if (err == noErr) {
+        plugin-&gt;fMagic     = kPluginMagic;
+        plugin-&gt;fCallbacks = callbacks;
+    }
+    
+    *outPlugin = plugin;
+    *outPluginInterface = &amp;gPluginInterface;
+    
+    assert( (err == noErr) == (*outPlugin != NULL) );
+    
+    return err;
+    
+}
+
+- (OSStatus)MechanismCreate:(AuthorizationPluginRef)inPlugin
+                  EngineRef:(AuthorizationEngineRef)inEngine
+                MechanismId:(AuthorizationMechanismId)mechanismId
+               MechanismRef:(AuthorizationMechanismRef *)outMechanism {
+    
+    OSStatus            err;
+    PluginRecord *      plugin;
+    MechanismRecord *   mechanism;
+    
+    plugin = (PluginRecord *) inPlugin;
+    assert([self PluginValid:plugin]);
+    assert(inEngine != NULL);
+    assert(mechanismId != NULL);
+    assert(outMechanism != NULL);
+    
+    err = noErr;
+    mechanism = (MechanismRecord *) malloc(sizeof(*mechanism));
+    if (mechanism == NULL) {
+        err = memFullErr;
+    }
+    
+    if (err == noErr) {
+        mechanism-&gt;fMagic = kMechanismMagic;
+        mechanism-&gt;fEngine = inEngine;
+        mechanism-&gt;fPlugin = plugin;
+        mechanism-&gt;fMachinePIN = (strcmp(mechanismId, "MachinePIN") == 0);
+        mechanism-&gt;fVerify = (strcmp(mechanismId, "Verify") == 0);
+    }
+    
+    *outMechanism = mechanism;
+    
+    assert( (err == noErr) == (*outMechanism != NULL) );
+    
+    return err;
+    
+}
+
+- (OSStatus)MechanismInvoke:(AuthorizationMechanismRef)inMechanism {
+    
+    OSStatus                    err;
+    MechanismRecord *           mechanism;
+    
+    mechanism = (MechanismRecord *) inMechanism;
+    assert([self MechanismValid:mechanism]);
+    
+    
+    // Call the MachinePIN mechanism
+#pragma mark --MachinePIN
+    
+    // Call the Verify mechanism
+#pragma mark --Verify
+    
+    
+    // Default "Allow Login". Used if none of the mechanisms above are called or don't make
+    // a decision
+    err = mechanism-&gt;fPlugin-&gt;fCallbacks-&gt;SetResult(mechanism-&gt;fEngine, kAuthorizationResultAllow);
+    return err;
+    
+}
+
+- (OSStatus)MechanismDeactivate:(AuthorizationMechanismRef)inMechanism {
+    
+    OSStatus            err;
+    MechanismRecord *   mechanism;
+    
+    mechanism = (MechanismRecord *) inMechanism;
+    assert([self MechanismValid:mechanism]);
+    
+    err = mechanism-&gt;fPlugin-&gt;fCallbacks-&gt;DidDeactivate(mechanism-&gt;fEngine);
+    
+    return err;
+    
+}
+
+- (OSStatus)MechanismDestroy:(AuthorizationMechanismRef)inMechanism {
+    
+    MechanismRecord *mechanism;
+    
+    mechanism = (MechanismRecord *) inMechanism;
+    assert([self MechanismValid:mechanism]);
+    
+    free(mechanism);
+    
+    return noErr;
+    
+}
+
+- (OSStatus)PluginDestroy:(AuthorizationPluginRef)inPlugin {
+    
+    PluginRecord *plugin;
+    
+    plugin = (PluginRecord *) inPlugin;
+    assert([self PluginValid:plugin]);
+    
+    free(plugin);
+    
+    return noErr;
+    
+}
+
+
+- (BOOL)MechanismValid:(const MechanismRecord *)mechanism {
+    
+    return (mechanism != NULL)
+    &amp;&amp; (mechanism-&gt;fMagic == kMechanismMagic)
+    &amp;&amp; (mechanism-&gt;fEngine != NULL)
+    &amp;&amp; (mechanism-&gt;fPlugin != NULL);
+    
+}
+
+
+- (BOOL)PluginValid:(const PluginRecord *)plugin {
+    
+    return (plugin != NULL)
+    &amp;&amp; (plugin-&gt;fMagic == kPluginMagic)
+    &amp;&amp; (plugin-&gt;fCallbacks != NULL)
+    &amp;&amp; (plugin-&gt;fCallbacks-&gt;version &gt;= kAuthorizationCallbacksVersion);
+    
+}
+
+@end
+</string>
+	<key>IDECodeSnippetIdentifier</key>
+	<string>8BB3EAFD-63F2-4FC0-A74F-7935EEAD66AD</string>
+	<key>IDECodeSnippetLanguage</key>
+	<string>Xcode.SourceCodeLanguage.Objective-C</string>
+	<key>IDECodeSnippetSummary</key>
+	<string>AuthorizationPlugin Implementation</string>
+	<key>IDECodeSnippetTitle</key>
+	<string>AuthorizationPlugin.m</string>
+	<key>IDECodeSnippetUserSnippet</key>
+	<true/>
+	<key>IDECodeSnippetVersion</key>
+	<integer>2</integer>
+</dict>
+</plist>
